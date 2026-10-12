@@ -1,0 +1,58 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  core:
+    name: Python & native (${{ matrix.os }}, ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ['3.10', '3.12']
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e '.[dev]'
+      - run: python scripts/build_native.py
+      - run: python -m pytest -q
+      - run: python scripts/benchmark.py --quick --repeats 2 --warmups 1
+  torch-cpu:
+    name: Optional PyTorch CPU
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: python -m pip install -e '.[dev]'
+      - run: python scripts/build_native.py
+      - run: python -m pytest -q
+      - run: python scripts/benchmark.py --quick --backends torch --repeats 2 --warmups 1
+  native-sanitizers:
+    name: C++ address & undefined-behavior sanitizers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build and run independently instrumented C++ harness
+        run: |
+          mkdir -p native/build
+          clang++ -std=c++17 -O1 -g -pthread -ffp-contract=off -fsanitize=address,undefined -fno-omit-frame-pointer -I native/include native/src/vectortile.cpp native/tests/smoke.cpp -o native/build/smoke_sanitized
+          native/build/smoke_sanitized
+  browser-algorithm:
+    name: Browser algorithm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: node --test tests/demo.test.mjs
