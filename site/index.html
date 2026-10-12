@@ -1,52 +1,285 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="VectorTile: an inspectable C++ and Python exact nearest-neighbor engine. Explore tiled search, reproducible CPU measurements, and the engineering tradeoffs.">
-  <title>VectorTile — Every vector. Less workspace.</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23142025'/%3E%3Cpath d='M14 18L32 47L50 18' fill='none' stroke='%23d5f45c' stroke-width='7'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css">
-  <script type="module" src="app.js"></script>
-</head>
-<body>
-<a class="skip" href="#playground">Skip to interactive demo</a>
-<header class="nav"><a class="brand" href="#"><span class="mark">V∴</span>VectorTile</a><nav aria-label="Main"><a href="#evidence">Measurements</a><a href="https://github.com/Simonn777/VectorTile">Source <span aria-hidden="true">↗</span></a><a class="author" href="https://github.com/Simonn777">Wumou Xie</a></nav></header>
-<main>
-<section class="hero">
-  <div class="eyebrow"><span class="live-dot"></span> A small systems lab / C++17 + Python</div>
-  <div class="hero-grid"><h1>Every vector.<br><span>Less workspace.</span></h1><div class="hero-copy"><p>Exact nearest-neighbor search, one tile at a time. Inspect how bounded working memory and deterministic selection turn an algorithm into a reliable system.</p><a href="#playground" class="text-link">Explore the algorithm <span aria-hidden="true">↓</span></a></div></div>
-  <div class="strip"><span>01 / Exhaustive search</span><span>02 / Deterministic ties</span><span>03 / Reproducible evidence</span></div>
-</section>
-<section id="playground" class="playground" aria-labelledby="demo-title">
-  <div class="section-head"><div><p class="eyebrow">The algorithm, made visible</p><h2 id="demo-title">A search you can follow.</h2></div><span class="tag">Interactive explanation · JavaScript</span></div>
-  <div class="lab-grid">
-    <div class="plot-panel"><div class="plot-top"><span>512 synthetic vectors / 2 dimensions</span><span id="scan-state" role="status">Ready</span></div><canvas id="plot" aria-label="Scatterplot of vectors, selected query, active tile, and retained nearest neighbors">Use the query position sliders and run button below to explore nearest neighbors.</canvas><div class="legend"><span><i class="legend-dot query"></i>Query</span><span><i class="legend-dot active"></i>Current tile</span><span><i class="legend-dot best"></i>Nearest so far</span><span class="plot-hint">Click to move the query</span></div></div>
-    <aside class="control-panel" aria-label="Search configuration">
-      <div class="control-title"><span>SEARCH CONFIGURATION</span><span>01</span></div>
-      <label for="tile">Corpus tile size</label><select id="tile"><option>16</option><option>32</option><option selected>64</option><option>128</option></select>
-      <label for="k">Neighbors to retain (k)</label><select id="k"><option selected>5</option><option>10</option><option>20</option></select>
-      <div class="query-label"><label for="query-x">Query x</label><output id="qx-value">0.55</output></div><input id="query-x" type="range" min="0" max="1" step="0.01" value="0.55">
-      <div class="query-label"><label for="query-y">Query y</label><output id="qy-value">0.48</output></div><input id="query-y" type="range" min="0" max="1" step="0.01" value="0.48">
-      <button id="run" class="primary">Run full scan <span aria-hidden="true">→</span></button><div class="secondary-actions"><button id="step">Step one tile</button><button id="reset">Reset</button></div>
-      <p class="control-note">Every vector is examined. The retained set stays at most <strong>k</strong> candidates. Smaller tiles trade working memory for more iterations.</p>
-    </aside>
-  </div>
-  <div class="readout"><div><span class="label">Vectors scanned</span><strong id="scanned">0 <small>/ 512</small></strong><progress id="progress" max="512" value="0">0%</progress></div><div><span class="label">Distance buffer estimate*</span><strong id="memory">1 KiB</strong><span id="memory-caption" class="caption">Two 1 × 64 float64 tile buffers</span></div><div><span class="label">Oracle check</span><strong id="verification" class="verification">Awaiting scan</strong><span class="caption">Compared with a full stable sort</span></div></div>
-  <div class="tile-ledger"><span class="label">Corpus tiles</span><div id="tiles" aria-label="Processed corpus tiles"></div></div>
-  <div class="neighbors"><span class="label">Current top-k</span><div id="neighbors">Run the scan to inspect retained vector IDs and squared distances.</div></div>
-  <p class="fineprint">*Illustrates the Python NumPy backend's two distance buffers; excludes inputs, output, selection scratch and runtime overhead. This browser demo explains the algorithm. The C++ and Python measurements below are separate, recorded runs.</p>
-</section>
-<section id="evidence" class="evidence" aria-labelledby="evidence-title">
-  <div class="section-head"><div><p class="eyebrow">Measured, with receipts</p><h2 id="evidence-title">Inspect the result.<br>Then reproduce it.</h2></div><a class="text-link" href="https://github.com/Simonn777/VectorTile/tree/main/benchmarks/results">Raw benchmark JSON <span aria-hidden="true">↗</span></a></div>
-  <div class="evidence-grid"><div class="measurement"><div class="measurement-head"><label for="case-select">Workload</label><select id="case-select" aria-label="Benchmark workload"><option>Loading measurements…</option></select></div><div id="benchmark-table" role="status">Loading recorded measurements…</div><p id="hardware" class="fineprint"></p></div><div class="method"><span class="label">What these numbers mean</span><h3>One contract.<br>Several implementations.</h3><p>All backends return squared Euclidean distances and vector IDs, sorted by distance and then ID. Every recorded repeat is checked against an independent direct-distance oracle.</p><p>Whole-call timing includes validation and output allocation. The reference is readable NumPy code; it is not a tuned FAISS or BLAS baseline.</p><p class="method-note">CPU measurements do not establish NVIDIA GPU performance. An optional PyTorch CUDA path is included, with hardware validation left explicit.</p></div></div>
-</section>
-<section class="engineering"><p class="eyebrow">Under the surface</p><div class="engineering-grid"><article><span class="number">01</span><h3>Bound the working set.</h3><p>NumPy uses two reusable distance tiles. C++ streams one corpus vector at a time into a size-k heap per worker. Neither needs the full query-by-corpus distance matrix.</p></article><article><span class="number">02</span><h3>Make edge cases ordinary.</h3><p>Duplicate vectors, ties across tiles, empty query batches, noncontiguous input, invalid dimensions and numerical overflow have explicit behavior and regression tests.</p></article><article><span class="number">03</span><h3>Expose the tradeoffs.</h3><p>Exact search still costs O(QND). Tiling changes workspace, not that fundamental cost. Performance depends on shape, k, threading, hardware and validation overhead.</p></article></div></section>
-<section class="reproduce"><div><p class="eyebrow">Run it yourself</p><h2>From clone to evidence.</h2><p>Python 3.9+ and a C++17 compiler. Synthetic data included through a deterministic generator.</p><a class="text-link" href="https://github.com/Simonn777/VectorTile#quickstart">Read setup & validation <span aria-hidden="true">↗</span></a></div><pre><code>git clone https://github.com/Simonn777/VectorTile.git
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="VectorTile: an inspectable C++ and Python exact nearest-neighbor engine. Explore tiled search, reproducible CPU measurements, and the engineering tradeoffs."
+    />
+    <title>VectorTile — Every vector. Less workspace.</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23142025'/%3E%3Cpath d='M14 18L32 47L50 18' fill='none' stroke='%23d5f45c' stroke-width='7'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#playground">Skip to interactive demo</a>
+    <header class="nav">
+      <a class="brand" href="#"><span class="mark">V∴</span>VectorTile</a>
+      <nav aria-label="Main">
+        <a href="#evidence">Measurements</a
+        ><a href="https://github.com/Simonn777/VectorTile"
+          >Source <span aria-hidden="true">↗</span></a
+        ><a class="author" href="https://github.com/Simonn777">Wumou Xie</a>
+      </nav>
+    </header>
+    <main>
+      <section class="hero">
+        <div class="eyebrow">
+          <span class="live-dot"></span> A small systems lab / C++17 + Python
+        </div>
+        <div class="hero-grid">
+          <h1>Every vector.<br /><span>Less workspace.</span></h1>
+          <div class="hero-copy">
+            <p>
+              Exact nearest-neighbor search, one tile at a time. Inspect how
+              bounded working memory and deterministic selection turn an
+              algorithm into a reliable system.
+            </p>
+            <a href="#playground" class="text-link"
+              >Explore the algorithm <span aria-hidden="true">↓</span></a
+            >
+          </div>
+        </div>
+        <div class="strip">
+          <span>01 / Exhaustive search</span><span>02 / Deterministic ties</span
+          ><span>03 / Reproducible evidence</span>
+        </div>
+      </section>
+      <section id="playground" class="playground" aria-labelledby="demo-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">The algorithm, made visible</p>
+            <h2 id="demo-title">A search you can follow.</h2>
+          </div>
+          <span class="tag">Interactive explanation · JavaScript</span>
+        </div>
+        <div class="lab-grid">
+          <div class="plot-panel">
+            <div class="plot-top">
+              <span>512 synthetic vectors / 2 dimensions</span
+              ><span id="scan-state" role="status">Ready</span>
+            </div>
+            <canvas
+              id="plot"
+              aria-label="Scatterplot of vectors, selected query, active tile, and retained nearest neighbors"
+              >Use the query position sliders and run button below to explore
+              nearest neighbors.</canvas
+            >
+            <div class="legend">
+              <span><i class="legend-dot query"></i>Query</span
+              ><span><i class="legend-dot active"></i>Current tile</span
+              ><span><i class="legend-dot best"></i>Nearest so far</span
+              ><span class="plot-hint">Click to move the query</span>
+            </div>
+          </div>
+          <aside class="control-panel" aria-label="Search configuration">
+            <div class="control-title">
+              <span>SEARCH CONFIGURATION</span><span>01</span>
+            </div>
+            <label for="tile">Corpus tile size</label
+            ><select id="tile">
+              <option>16</option>
+              <option>32</option>
+              <option selected>64</option>
+              <option>128</option>
+            </select>
+            <label for="k">Neighbors to retain (k)</label
+            ><select id="k">
+              <option selected>5</option>
+              <option>10</option>
+              <option>20</option>
+            </select>
+            <div class="query-label">
+              <label for="query-x">Query x</label
+              ><output id="qx-value">0.55</output>
+            </div>
+            <input
+              id="query-x"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0.55"
+            />
+            <div class="query-label">
+              <label for="query-y">Query y</label
+              ><output id="qy-value">0.48</output>
+            </div>
+            <input
+              id="query-y"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0.48"
+            />
+            <button id="run" class="primary">
+              Run full scan <span aria-hidden="true">→</span>
+            </button>
+            <div class="secondary-actions">
+              <button id="step">Step one tile</button
+              ><button id="reset">Reset</button>
+            </div>
+            <p class="control-note">
+              Every vector is examined. The retained set stays at most
+              <strong>k</strong> candidates. Smaller tiles trade working memory
+              for more iterations.
+            </p>
+          </aside>
+        </div>
+        <div class="readout">
+          <div>
+            <span class="label">Vectors scanned</span
+            ><strong id="scanned">0 <small>/ 512</small></strong
+            ><progress id="progress" max="512" value="0">0%</progress>
+          </div>
+          <div>
+            <span class="label">Distance buffer estimate*</span
+            ><strong id="memory">1 KiB</strong
+            ><span id="memory-caption" class="caption"
+              >Two 1 × 64 float64 tile buffers</span
+            >
+          </div>
+          <div>
+            <span class="label">Oracle check</span
+            ><strong id="verification" class="verification"
+              >Awaiting scan</strong
+            ><span class="caption">Compared with a full stable sort</span>
+          </div>
+        </div>
+        <div class="tile-ledger">
+          <span class="label">Corpus tiles</span>
+          <div id="tiles" aria-label="Processed corpus tiles"></div>
+        </div>
+        <div class="neighbors">
+          <span class="label">Current top-k</span>
+          <div id="neighbors">
+            Run the scan to inspect retained vector IDs and squared distances.
+          </div>
+        </div>
+        <p class="fineprint">
+          *Illustrates the Python NumPy backend's two distance buffers; excludes
+          inputs, output, selection scratch and runtime overhead. This browser
+          demo explains the algorithm. The C++ and Python measurements below are
+          separate, recorded runs.
+        </p>
+      </section>
+      <section id="evidence" class="evidence" aria-labelledby="evidence-title">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Measured, with receipts</p>
+            <h2 id="evidence-title">
+              Inspect the result.<br />Then reproduce it.
+            </h2>
+          </div>
+          <a
+            class="text-link"
+            href="https://github.com/Simonn777/VectorTile/tree/main/benchmarks/results"
+            >Raw benchmark JSON <span aria-hidden="true">↗</span></a
+          >
+        </div>
+        <div class="evidence-grid">
+          <div class="measurement">
+            <div class="measurement-head">
+              <label for="case-select">Workload</label
+              ><select id="case-select" aria-label="Benchmark workload">
+                <option>Loading measurements…</option>
+              </select>
+            </div>
+            <div id="benchmark-table" role="status">
+              Loading recorded measurements…
+            </div>
+            <p id="hardware" class="fineprint"></p>
+          </div>
+          <div class="method">
+            <span class="label">What these numbers mean</span>
+            <h3>One contract.<br />Several implementations.</h3>
+            <p>
+              All backends return squared Euclidean distances and vector IDs,
+              sorted by distance and then ID. Every recorded repeat is checked
+              against an independent direct-distance oracle.
+            </p>
+            <p>
+              Whole-call timing includes validation and output allocation. The
+              reference is readable NumPy code; it is not a tuned FAISS or BLAS
+              baseline.
+            </p>
+            <p class="method-note">
+              CPU measurements do not establish NVIDIA GPU performance. An
+              optional PyTorch CUDA path is included, with hardware validation
+              left explicit.
+            </p>
+          </div>
+        </div>
+      </section>
+      <section class="engineering">
+        <p class="eyebrow">Under the surface</p>
+        <div class="engineering-grid">
+          <article>
+            <span class="number">01</span>
+            <h3>Bound the working set.</h3>
+            <p>
+              NumPy uses two reusable distance tiles. C++ streams one corpus
+              vector at a time into a size-k heap per worker. Neither needs the
+              full query-by-corpus distance matrix.
+            </p>
+          </article>
+          <article>
+            <span class="number">02</span>
+            <h3>Make edge cases ordinary.</h3>
+            <p>
+              Duplicate vectors, ties across tiles, empty query batches,
+              noncontiguous input, invalid dimensions and numerical overflow
+              have explicit behavior and regression tests.
+            </p>
+          </article>
+          <article>
+            <span class="number">03</span>
+            <h3>Expose the tradeoffs.</h3>
+            <p>
+              Exact search still costs O(QND). Tiling changes workspace, not
+              that fundamental cost. Performance depends on shape, k, threading,
+              hardware and validation overhead.
+            </p>
+          </article>
+        </div>
+      </section>
+      <section class="reproduce">
+        <div>
+          <p class="eyebrow">Run it yourself</p>
+          <h2>From clone to evidence.</h2>
+          <p>
+            Python 3.9+ and a C++17 compiler. Synthetic data included through a
+            deterministic generator.
+          </p>
+          <a
+            class="text-link"
+            href="https://github.com/Simonn777/VectorTile#quickstart"
+            >Read setup & validation <span aria-hidden="true">↗</span></a
+          >
+        </div>
+        <pre><code>git clone https://github.com/Simonn777/VectorTile.git
 cd VectorTile
 python -m pip install -e '.[dev]'
 python scripts/build_native.py
 python -m pytest -q
-python scripts/benchmark.py</code></pre></section>
-</main>
-<footer><a class="brand" href="https://github.com/Simonn777">Wumou Xie <span class="muted">/ Tufts · May 2029</span></a><span>Independent project · MIT license · <a href="https://github.com/Simonn777/VectorTile/blob/main/docs/DEVELOPMENT.md">Development provenance</a></span></footer>
-</body></html>
+python scripts/benchmark.py</code></pre>
+      </section>
+    </main>
+    <footer>
+      <a class="brand" href="https://github.com/Simonn777"
+        >Wumou Xie <span class="muted">/ Tufts · May 2029</span></a
+      ><span
+        >Independent project · MIT license ·
+        <a
+          href="https://github.com/Simonn777/VectorTile/blob/main/docs/DEVELOPMENT.md"
+          >Development provenance</a
+        ></span
+      >
+    </footer>
+  </body>
+</html>
