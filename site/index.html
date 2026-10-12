@@ -23,7 +23,9 @@
         <a href="#evidence">Measurements</a
         ><a href="https://github.com/Simonn777/VectorTile"
           >Source <span aria-hidden="true">↗</span></a
-        ><a class="author" href="https://github.com/Simonn777">Wumou Xie</a>
+        ><a class="author" href="https://simonn777.github.io/Simonn777/"
+          >Wumou Xie</a
+        >
       </nav>
     </header>
     <main>
@@ -36,7 +38,7 @@
           <div class="hero-copy">
             <p>
               Exact nearest-neighbor search, one tile at a time. Inspect how
-              bounded working memory and deterministic selection turn an
+              bounded distance workspace and deterministic selection turn an
               algorithm into a reliable system.
             </p>
             <a href="#playground" class="text-link"
@@ -241,9 +243,9 @@
             <span class="number">03</span>
             <h3>Expose the tradeoffs.</h3>
             <p>
-              Exact search still costs O(QND). Tiling changes workspace, not
-              that fundamental cost. Performance depends on shape, k, threading,
-              hardware and validation overhead.
+              Distance evaluation costs O(QND); selection adds backend-dependent
+              work. Tiling changes distance workspace. Performance depends on
+              shape, k, threading, hardware and validation overhead.
             </p>
           </article>
         </div>
@@ -271,10 +273,10 @@ python scripts/benchmark.py</code></pre>
       </section>
     </main>
     <footer>
-      <a class="brand" href="https://github.com/Simonn777"
+      <a class="brand" href="https://simonn777.github.io/Simonn777/"
         >Wumou Xie <span class="muted">/ Tufts · May 2029</span></a
       ><span
-        >Independent project · MIT license ·
+        >AI-assisted systems project · MIT license ·
         <a
           href="https://github.com/Simonn777/VectorTile/blob/main/docs/DEVELOPMENT.md"
           >Development provenance</a

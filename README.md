@@ -12,6 +12,25 @@ and measurements you can reproduce.
 [Raw measurements](benchmarks/results/apple-m5-cpu.json) ·
 [C++ implementation](native/src/vectortile.cpp)
 
+[![VectorTile interactive demo with tile-scan controls, distance-buffer estimates, an oracle check, and recorded CPU benchmarks](docs/demo-preview.jpg)](https://simonn777.github.io/VectorTile/)
+
+**Scope:** published CPU measurements; an optional CUDA path that has not been
+validated on NVIDIA hardware. Created with substantial AI-assisted implementation
+and review; [development provenance](docs/DEVELOPMENT.md).
+
+## Explore in two minutes
+
+1. **See the problem:** open the [interactive demo](https://simonn777.github.io/VectorTile/)
+   and follow how each distance tile updates the nearest candidates.
+2. **Inspect the tradeoff:** compare [NumPy's tile-local selection](src/vectortile/search.py)
+   with the [C++ per-worker max heap](native/src/vectortile.cpp);
+   [design decisions](docs/DESIGN.md) explain why both remain exhaustive.
+3. **Check the guarantees:** [Python tests](tests/test_search.py) cover independent
+   oracles, boundary ties and overflow; [native tests](tests/test_native.py) cover
+   the C ABI and thread behavior.
+4. **Audit the evidence:** inspect the [raw CPU runs](benchmarks/results/apple-m5-cpu.json)
+   alongside the [benchmark protocol and limits](docs/BENCHMARKS.md).
+
 ## The engineering question
 
 How do you retrieve the exact nearest neighbors without allocating every
@@ -19,14 +38,16 @@ query-to-corpus distance at once—and prove that the answer stays correct?
 
 VectorTile compares a readable dense reference, tiled NumPy, a streaming
 multithreaded C++ engine, and optional PyTorch CPU/CUDA backends behind one API.
-It is a small systems project, not a vector database or a new retrieval algorithm.
+Use it as a small-data exact-retrieval baseline, or to study the workspace and
+selection tradeoffs of exhaustive search. It is a small systems project, not a
+production vector database or a new retrieval algorithm.
 
-| Implementation | Selection strategy | Principal distance / heap workspace |
-| --- | --- | --- |
-| Dense reference | Full lexicographic sort | Q×N×D differences + Q×N distances |
-| NumPy | Tile-local top-k, deterministic merge | Two Bq×Bc float64 buffers |
-| C++17 | Size-k max heap per worker | T×k candidates; no distance matrix |
-| PyTorch CPU / CUDA | Stable tile sort and merge | Bq×Bc×D difference tensor + tile/sort scratch |
+| Implementation     | Selection strategy                    | Principal distance / heap workspace           |
+| ------------------ | ------------------------------------- | --------------------------------------------- |
+| Dense reference    | Full lexicographic sort               | Q×N×D differences + Q×N distances             |
+| NumPy              | Tile-local top-k, deterministic merge | Two Bq×Bc float64 buffers                     |
+| C++17              | Size-k max heap per worker            | T×k candidates; no distance matrix            |
+| PyTorch CPU / CUDA | Stable tile sort and merge            | Bq×Bc×D difference tensor + tile/sort scratch |
 
 Q = queries; N = corpus rows; D = dimensions; Bq/Bc = tile sizes; T = workers.
 These are **principal workspace terms, not total RSS**. Inputs, outputs,
@@ -35,24 +56,15 @@ See the [complete accounting](docs/BACKENDS.md).
 
 ## Quickstart
 
-Requires Python 3.9+. The native build supports macOS and Linux with Clang or GCC.
+Requires Python 3.9+. Start with NumPy; no C++ compiler is needed.
 
 ```sh
 git clone https://github.com/Simonn777/VectorTile.git
 cd VectorTile
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -e '.[dev]'
-python scripts/build_native.py
-python -m pytest -q
-python scripts/benchmark.py --quick
-```
-
-The default NumPy backend works without a C++ compiler. Optional PyTorch:
-
-```sh
-python -m pip install -e '.[torch]'
-python scripts/benchmark.py --backends reference numpy native torch
+python -m pip install -e .
+python scripts/benchmark.py --quick --backends numpy
 ```
 
 ```python
@@ -62,9 +74,32 @@ from vectortile import search
 corpus = np.array([[1., 0.], [0., 1.], [0., 0.], [3., 4.]])
 queries = np.array([[0., 0.]])
 
-result = search(queries, corpus, k=3, backend="native", threads=4)
+result = search(queries, corpus, k=3)  # NumPy is the default
 print(result.indices)    # [[2 0 1]] — equal distances use smaller corpus ID
 print(result.distances)  # [[0. 1. 1.]] — squared Euclidean distances
+```
+
+### Optional C++ backend and tests
+
+The native build supports macOS and Linux with Clang or GCC. Build it before
+running the full Python/native test suite:
+
+```sh
+python -m pip install -e '.[dev]'
+python scripts/build_native.py
+python -m pytest -q
+python scripts/benchmark.py --quick --backends reference numpy native
+```
+
+Then select it with `search(queries, corpus, k=3, backend="native", threads=4)`.
+
+### Optional PyTorch
+
+The CPU PyTorch backend also works without building the C++ backend:
+
+```sh
+python -m pip install -e '.[torch]'
+python scripts/benchmark.py --quick --backends reference numpy torch
 ```
 
 The Python wheel contains the Python package only. For native use outside a
